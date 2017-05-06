@@ -3,12 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <mpi.h>
-
-int mod(int a, int b)
-{
-    int r = a % b;
-    return r < 0 ? r + b : r;
-}
+#include "life3d.h"
 
 int main(int argc, char *argv[]){
    
@@ -85,7 +80,7 @@ int main(int argc, char *argv[]){
        
        int cell_proc = totcells/p;
        
-
+       
        for (int i = 0; i < SIZE_CUBE; i++){
             
             printf("%d : %d\n", i, count[i]);
@@ -197,6 +192,15 @@ int main(int argc, char *argv[]){
    //These are the boundaries of the current process ---> USE THESE VARIABLES IN THE MAIN ALGORITHM WHEN NEEDED
    int bound_low = boundaries[2*id];
    int bound_high = boundaries[2*id+1];
+
+   /* x coordinates of the upper and lower ghost rows (rows sent from neighbours) */
+   int ghost_up = mod(bound_high+1, SIZE_CUBE);   
+   int ghost_down = mod(bound_low-1, SIZE_CUBE);
+
+   /*
+   printf("Ghost up process %d: %d\n", id, ghost_up);
+   printf("Ghost down process %d: %d\n", id, ghost_down);
+  */
    
    /*
    printf("Process %d boundaries: [%d, %d]\n", id, bound_low, bound_high);
@@ -278,23 +282,54 @@ int main(int argc, char *argv[]){
         MPI_Recv(&first_batch, BUFFER_MAX, MPI_INT, 0, 0, MPI_COMM_WORLD, &status_batch);
         MPI_Get_count(&status_batch, MPI_INT, &count_batch);
         //printf("Received %d\n", count_batch);
-        
+        /*
+        if (id == 3){
         printf ("--------------PROCESS %d -----------\n", id);
         for (int j = 0; j < count_batch; j = j+3){
             printf("(%d, %d, %d)\n", first_batch[j], first_batch[j+1], first_batch[j+2]);
             fflush(stdout);
             
         }  
-         
+      }
+      */
    }
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
-   
+  int SIZE_MAIN_TABLE = 1203;  //The main table has more entries
+  int SIZE_SIDE_TABLE = 521;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
+  cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
+  memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
 
-   
-   
+  cell * low_main_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(low_main_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * high_main_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(high_main_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * aux_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
+  memset(aux_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
+
+  cell * aux_low_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(aux_low_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * aux_high_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(aux_high_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  if (id != 0)
+    insert_first_batch(cur_main_table, low_main_table, high_main_table, first_batch, count_batch, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
+  else
+    insert_first_batch(cur_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_up, ghost_down);
+
+  if (id  == 1){
+    print_table(cur_main_table, SIZE_MAIN_TABLE);
+  }
+  
+  //Tables are ready... FROM HERE ON THE MAIN ALGORITHM SHOULD START!
+
+  
+
    
    /* HERE THE n-th generation has been computed. Before this point I want two arrays called "array_up" and "array_down" containing the ghost cells for the upper process and the lower process
    

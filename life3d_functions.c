@@ -48,7 +48,11 @@ void insert(cell * table, int x, int y, int z, int SIZE_TABLE)
                 *new_cell.next = table[hash];
                 table[hash] = new_cell;
         }
-        
+
+        /*
+        printf("Inserted: (%d, %d, %d)\n", new_cell.x, new_cell.y, new_cell.z);
+        fflush(stdout);
+        */
 }
 
 //This function search in the hashtable the given cell and give back the cell status (0 or 1)
@@ -89,14 +93,24 @@ void formatarray(cell * table_B, int table[], int SIZE_TABLE){
 
 void insert_first_batch(cell * cur_table, cell* cur_table_low, cell* cur_table_high, int buffer[], int count, int SIZE_MAIN_TABLE, int SIZE_SIDE_TABLE, int lowB, int highB){
     int i=0;
-    printf("Count: %d\n", count);
+    //printf("Count: %d\n", count);
     while (i < count-1){
-        if (buffer[i] == lowB)
+        //printf("Buffer: %d \n", buffer[i]);
+        if (buffer[i] == lowB){
             insert(cur_table_low, buffer[i], buffer[i+1], buffer[i+2], SIZE_SIDE_TABLE);
-        else if (buffer[i] == highB)
+            //printf("HERE1\n");
+            //fflush(stdout);
+        }
+        else if (buffer[i] == highB){
             insert(cur_table_high, buffer[i], buffer[i+1], buffer[i+2], SIZE_SIDE_TABLE);
-        else
+            //printf("HERE2\n");
+            //fflush(stdout);
+        }
+        else {
             insert(cur_table, buffer[i], buffer[i+1], buffer[i+2], SIZE_MAIN_TABLE);
+            //printf("HERE3\n");
+            //fflush(stdout);
+        }
 
         i = i+3;
     }
@@ -320,16 +334,28 @@ void print_list(cell ** order, int SIZE_CUBE)
 }
 
 
-//Accessory function: count the number of empty buckets in the hash table
-int void_cells(cell * table, int SIZE_TABLE){
-        int count = 0;
-        for (int i = 0; i < SIZE_TABLE; i++){
-                if (table[i].key == -1){
-                        count ++;
-                }
+void print_table(cell * table, int SIZE_TABLE){
+
+    int i;
+    for (i = 0; i < SIZE_TABLE; i++){
+        if (table[i].key == -1)
+            continue;
+
+        cell cur_cell = table[i];
+
+        while (cur_cell.next != NULL){
+            printf("(%d, %d, %d)\n", cur_cell.x, cur_cell.y, cur_cell.z);
+            fflush(stdout);
+            cur_cell = *cur_cell.next;
         }
 
-        return count;
+        if (cur_cell.next == NULL){
+            printf("(%d, %d, %d)\n", cur_cell.x, cur_cell.y, cur_cell.z);
+            fflush(stdout);
+        }
+
+
+    }
 }
 
 
