@@ -202,11 +202,11 @@ int main(int argc, char *argv[]){
    printf("Ghost down process %d: %d\n", id, ghost_down);
   */
    
-   /*
+   
    printf("Process %d boundaries: [%d, %d]\n", id, bound_low, bound_high);
    fflush(stdout);
   
-   
+   /*
    printf("Process %d SIZE_CUBE: %d\n", id, SIZE_CUBE);
    fflush(stdout);
     */
@@ -297,7 +297,7 @@ int main(int argc, char *argv[]){
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
   int SIZE_MAIN_TABLE = 1203;  //The main table has more entries
-  int SIZE_SIDE_TABLE = 521;   //The tables containing only ghost rows have less entries on average so the table can be smaller
+  int SIZE_SIDE_TABLE = 1;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
   memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
@@ -318,21 +318,85 @@ int main(int argc, char *argv[]){
   memset(aux_high_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
 
   if (id != 0)
-    insert_first_batch(cur_main_table, low_main_table, high_main_table, first_batch, count_batch, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
+    insert_first_batch(aux_main_table, low_main_table, high_main_table, first_batch, count_batch, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
   else
-    insert_first_batch(cur_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_up, ghost_down);
+    insert_first_batch(aux_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_up, ghost_down);
 
+  /*
   if (id  == 1){
     print_table(cur_main_table, SIZE_MAIN_TABLE);
   }
-  
-  //Tables are ready... FROM HERE ON THE MAIN ALGORITHM SHOULD START!
+  */
 
+  /* Tables are ready... FROM HERE ON THE MAIN ALGORITHM SHOULD START! */
   
+  int i;
+  cell *aux;
+  cell current;
+  int neighbours;
 
+  if (id == 3){
+
+  for (i=0; i<1; i++){
    
-   /* HERE THE n-th generation has been computed. Before this point I want two arrays called "array_up" and "array_down" containing the ghost cells for the upper process and the lower process
+    aux=cur_main_table;
+    cur_main_table = aux_main_table;
+    aux_main_table=aux;
+  
+    free_list(aux_main_table, SIZE_MAIN_TABLE); 
+  
+    int temp;
+
+    for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+      current = cur_main_table[temp];
+      if(current.key!=-1){
+        neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE);
+        if (neighbours>=2 && neighbours<=4){
+          //printf("Insertion point 1: (%d, %d)\n", bound_low, bound_high);
+          insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+          if (current.x == bound_low){
+            insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+          }
+
+          if (current.x == bound_high){
+            insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+          }
+        }
+
+        while (current.next != NULL) {
+          current=*current.next;
+          neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE);
+          if (neighbours>=2 && neighbours<=4){
+            //printf("Insertion point 2: (%d, %d)\n", bound_low, bound_high);
+            insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+            if (current.x == bound_low){
+              insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            }
+
+            if (current.x == bound_high){
+              insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            }
+          }
+        } 
+      }
+    }
+   }    
+        printf("------- NEXT GEN TABLE -------\n");
+        print_table(aux_main_table, SIZE_MAIN_TABLE);
+
+        printf("------- GHOST ROWS SEND UP----\n");
+        print_table(aux_high_table, SIZE_SIDE_TABLE);
+
+        printf("------- GHOST ROWS SEND DOWN-- \n");
+        print_table(aux_low_table, SIZE_SIDE_TABLE);
+        
+        
    
+   }
+
+
    /* From this point on I perform the communication of ghost cells to adjacent processes and receive the ghost cells from adjacent processes */
    
    
