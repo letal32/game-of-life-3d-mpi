@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
             exit(1);
        }
        else if (SIZE_CUBE > 2*p && average >= 2*p)
-            perc = 0.95;
+            perc = 0.90;
        else
             perc = 0.65;
        
@@ -346,43 +346,58 @@ int main(int argc, char *argv[]){
     free_list(aux_main_table, SIZE_MAIN_TABLE); 
   
     int temp;
+    int num_up = 0;
+    int num_down = 0;
 
     for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
       current = cur_main_table[temp];
       if(current.key!=-1){
-        neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE);
+        neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
         if (neighbours>=2 && neighbours<=4){
           //printf("Insertion point 1: (%d, %d)\n", bound_low, bound_high);
           insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
 
           if (current.x == bound_low){
             insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            num_down = num_down + 1;
           }
 
           if (current.x == bound_high){
             insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            num_up = num_up + 1;
           }
         }
 
         while (current.next != NULL) {
           current=*current.next;
-          neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE);
+          neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
           if (neighbours>=2 && neighbours<=4){
             //printf("Insertion point 2: (%d, %d)\n", bound_low, bound_high);
             insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
 
             if (current.x == bound_low){
               insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+              num_down = num_down+1;
             }
 
             if (current.x == bound_high){
               insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+              num_up = num_up+1;
             }
           }
         } 
       }
     }
+    //printf("NumUP: %d, NumDOWN: %d\n", num_up, num_down );
+    int * ser = serialize(aux_low_table, SIZE_SIDE_TABLE, num_down*3);
+    int l = 0;
+    for (int h = 0; h < num_down*3; h=h+3){
+        printf("%d : (%d, %d, %d)\n", l, ser[h], ser[h+1], ser[h+2]);
+        l++;
+    }
+
    }    
+        /*
         printf("------- NEXT GEN TABLE -------\n");
         print_table(aux_main_table, SIZE_MAIN_TABLE);
 
@@ -391,8 +406,9 @@ int main(int argc, char *argv[]){
 
         printf("------- GHOST ROWS SEND DOWN-- \n");
         print_table(aux_low_table, SIZE_SIDE_TABLE);
-        
-        
+        */
+
+
    
    }
 
