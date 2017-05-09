@@ -159,7 +159,7 @@ int main(int argc, char *argv[]){
             
        }
        
-       
+       /*
        printf("-------------- BOUNDARIES ------------\n");
        
        for (int i = 0; i < 2*p; i++){
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]){
             fflush(stdout);  
        }
        printf("\n");
-       
+       */
        
       
    }
@@ -293,7 +293,7 @@ int main(int argc, char *argv[]){
       }
       */
 
-      printf("Process %d is here\n", id );
+      //printf("Process %d is here\n", id );
    }
 
    
@@ -326,10 +326,10 @@ int main(int argc, char *argv[]){
     insert_first_batch(aux_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
 
   /*
-  if (id  == 0){
-    print_table(low_main_table, SIZE_SIDE_TABLE);
-  }
-  */
+  if (id  == 2){
+    print_table(aux_main_table, SIZE_MAIN_TABLE);
+  }*/
+  
 
   /* Tables are ready... FROM HERE ON THE MAIN ALGORITHM SHOULD START! */
   
@@ -341,7 +341,7 @@ int main(int argc, char *argv[]){
   int proc_down = mod(id-1, p);
 
   //printf("Process %d: up --> %d, down --> %d\n", id, proc_up, proc_down);
-  for (i=0; i<100; i++){
+  for (i=0; i<iter; i++){
    
     aux=cur_main_table;
     cur_main_table = aux_main_table;
@@ -405,8 +405,41 @@ int main(int argc, char *argv[]){
 
       /* SEND GHOST ROWS AND RETRIEVE GHOST ROWS */
       /*
-      if (id == 0 && i == 1){
+      if (id == 0 && i == 0){
+        print_table(cur_main_table, SIZE_MAIN_TABLE);
+      }
+      */
+
+      /*   
+      if (id == 0){
+        printf("PROCESS 0");
+
+        printf("-----GENERATION %d NGT -----\n", i );
         print_table(aux_main_table, SIZE_MAIN_TABLE);
+        printf("-----GENERATION %d LMT------\n", i);
+        print_table(low_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(high_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d LAT------\n", i);
+        print_table(aux_low_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(aux_high_table, SIZE_SIDE_TABLE);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      if (id == 1){
+        printf("PROCESS 1");
+        printf("-----GENERATION %d NGT -----\n", i );
+        print_table(aux_main_table, SIZE_MAIN_TABLE);
+        printf("-----GENERATION %d LMT------\n", i);
+        print_table(low_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(high_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d LAT------\n", i);
+        print_table(aux_low_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(aux_high_table, SIZE_SIDE_TABLE);
       }
       */
       
@@ -450,13 +483,71 @@ int main(int argc, char *argv[]){
       free_list(low_main_table, SIZE_SIDE_TABLE);
       insert_table(high_main_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up);
       insert_table(low_main_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down);
+      free_list(aux_high_table, SIZE_SIDE_TABLE);
+      free_list(aux_low_table, SIZE_SIDE_TABLE);
       
       
-      
-      if (id == 0 && i==9){
+      /*
+      if (id == 0){
+        printf("PROCESS 0");
+
+        printf("-----GENERATION %d NGT -----\n", i );
         print_table(aux_main_table, SIZE_MAIN_TABLE);
+        printf("-----GENERATION %d LMT------\n", i);
+        print_table(low_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(high_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d LAT------\n", i);
+        print_table(aux_low_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(aux_high_table, SIZE_SIDE_TABLE);
       }
-            
+
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      if (id == 1){
+        printf("PROCESS 1");
+        printf("-----GENERATION %d NGT -----\n", i );
+        print_table(aux_main_table, SIZE_MAIN_TABLE);
+        printf("-----GENERATION %d LMT------\n", i);
+        print_table(low_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(high_main_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d LAT------\n", i);
+        print_table(aux_low_table, SIZE_SIDE_TABLE);
+        printf("-----GENERATION %d HMT------\n", i);
+        print_table(aux_high_table, SIZE_SIDE_TABLE);
+      }
+      */
+      
+      
+      
+      if (i == iter-1){
+   
+          cell * order[SIZE_CUBE];
+          for (int l = 0; l<SIZE_CUBE; l++)
+              order[l] = NULL;
+   
+          ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
+
+          if (id == 0){
+            print_list(order, SIZE_CUBE);
+            int ready = 1;
+            MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
+          } else {
+            int ready;
+            MPI_Status stat;
+            MPI_Recv(&ready, 1, MPI_INT, proc_down, 9, MPI_COMM_WORLD, &stat);
+            print_list(order, SIZE_CUBE);
+
+            if (proc_up != 0){
+              int ready = 1;
+              MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
+            }
+          }
+
+      }
+      
       
    }    
 
