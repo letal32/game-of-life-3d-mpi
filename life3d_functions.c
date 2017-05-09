@@ -370,11 +370,10 @@ void print_table(cell * table, int SIZE_TABLE){
     }
 }
 
-int* serialize(cell * table, int SIZE_TABLE, int size){
+void serialize(cell * table, int SIZE_TABLE, int dest[], int size){
 
     int i;
     int k = 0;
-    int *dest = malloc(size*sizeof(int));
 
     for (i = 0; i < SIZE_TABLE; i++){
         if (table[i].key == -1)
@@ -401,7 +400,15 @@ int* serialize(cell * table, int SIZE_TABLE, int size){
 
     }
 
-    return dest;
+}
+
+void insert_table(cell * table, int SIZE_TABLE, int * buffer, int size){
+
+    int i;
+    for(i = 0; i < size; i=i+3){
+        insert(table, buffer[i], buffer[i+1], buffer[i+2], SIZE_TABLE);
+    }
+
 }
 
 

@@ -23,6 +23,7 @@ cell * push(cell * head, int x, int y, int z);
 void print_list(cell ** order, int SIZE_CUBE);
 void insert_first_batch(cell * cur_table, cell* cur_table_low, cell* cur_table_high, int buffer[], int count, int SIZE_MAIN_TABLE, int SIZE_SIDE_TABLE, int lowB, int highB);
 void print_table(cell * table, int SIZE_TABLE);
-int* serialize(cell * table, int SIZE_TABLE, int size);
+void serialize(cell * table, int SIZE_TABLE, int dest[], int size);
+void insert_table(cell * table, int SIZE_TABLE, int * buffer, int size);
 
 #endif

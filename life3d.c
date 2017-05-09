@@ -13,7 +13,7 @@ int main(int argc, char *argv[]){
    int SIZE_CUBE;
    int iter;
    double elapsed_time;
-   int BUFFER_MAX = 250000;
+   int BUFFER_MAX = 500000;
    
    
    char line[100];
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
        int count[SIZE_CUBE];
        memset(&count, 0, SIZE_CUBE*sizeof(int)); 
        
-       int totcells = 0;
+       int totcells = 0; // COUNT TOTAL NUMBER OF INITIAL LIVING CELLS
        
        while (fgets(line, sizeof(line), file)) {
             points = strtok(line, " ");
@@ -78,20 +78,20 @@ int main(int argc, char *argv[]){
        fclose (file); 
        
        
-       int cell_proc = totcells/p;
+       int cell_proc = totcells/p; // NUMBER OF CELLS PER PROCESS (IDEALLY)
        
-       
+       /*
        for (int i = 0; i < SIZE_CUBE; i++){
             
             printf("%d : %d\n", i, count[i]);
             fflush(stdout);  
        }
-       
+       */
        //printf("-----\n %d \n", cell_proc);
        //fflush(stdout);
 
        
-       int average = totcells/SIZE_CUBE;
+       int average = totcells/SIZE_CUBE; //NUMBER OF CELLS PER SLICE
        boundaries[0] = 0;
        double perc;
        
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]){
             
        }
        
-       /*
+       
        printf("-------------- BOUNDARIES ------------\n");
        
        for (int i = 0; i < 2*p; i++){
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]){
        }
        printf("\n");
        
-       */
+       
       
    }
    
@@ -202,10 +202,10 @@ int main(int argc, char *argv[]){
    printf("Ghost down process %d: %d\n", id, ghost_down);
   */
    
-   
+   /*
    printf("Process %d boundaries: [%d, %d]\n", id, bound_low, bound_high);
    fflush(stdout);
-  
+  */
    /*
    printf("Process %d SIZE_CUBE: %d\n", id, SIZE_CUBE);
    fflush(stdout);
@@ -257,8 +257,8 @@ int main(int argc, char *argv[]){
                 printf("(%d, %d, %d)\n", buffer[j], buffer[j+1], buffer[j+2]);
                 fflush(stdout);
             }
-            */
             
+            */
             /* Send the array to processes */
             
             if (i != 0)
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]){
    int first_batch[BUFFER_MAX];
    MPI_Status status_batch;
    int count_batch;
-   
+
    if (id != 0){
         MPI_Recv(&first_batch, BUFFER_MAX, MPI_INT, 0, 0, MPI_COMM_WORLD, &status_batch);
         MPI_Get_count(&status_batch, MPI_INT, &count_batch);
@@ -292,12 +292,15 @@ int main(int argc, char *argv[]){
         }  
       }
       */
+
+      printf("Process %d is here\n", id );
    }
+
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
-  int SIZE_MAIN_TABLE = 1203;  //The main table has more entries
-  int SIZE_SIDE_TABLE = 1;   //The tables containing only ghost rows have less entries on average so the table can be smaller
+  int SIZE_MAIN_TABLE = 103001;  //The main table has more entries
+  int SIZE_SIDE_TABLE = 50023;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
   memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
@@ -320,11 +323,11 @@ int main(int argc, char *argv[]){
   if (id != 0)
     insert_first_batch(aux_main_table, low_main_table, high_main_table, first_batch, count_batch, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
   else
-    insert_first_batch(aux_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_up, ghost_down);
+    insert_first_batch(aux_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
 
   /*
-  if (id  == 1){
-    print_table(cur_main_table, SIZE_MAIN_TABLE);
+  if (id  == 0){
+    print_table(low_main_table, SIZE_SIDE_TABLE);
   }
   */
 
@@ -334,10 +337,11 @@ int main(int argc, char *argv[]){
   cell *aux;
   cell current;
   int neighbours;
+  int proc_up = mod(id + 1, p);
+  int proc_down = mod(id-1, p);
 
-  if (id == 3){
-
-  for (i=0; i<1; i++){
+  //printf("Process %d: up --> %d, down --> %d\n", id, proc_up, proc_down);
+  for (i=0; i<100; i++){
    
     aux=cur_main_table;
     cur_main_table = aux_main_table;
@@ -388,6 +392,8 @@ int main(int argc, char *argv[]){
         } 
       }
     }
+    
+    /*
     //printf("NumUP: %d, NumDOWN: %d\n", num_up, num_down );
     int * ser = serialize(aux_low_table, SIZE_SIDE_TABLE, num_down*3);
     int l = 0;
@@ -395,8 +401,66 @@ int main(int argc, char *argv[]){
         printf("%d : (%d, %d, %d)\n", l, ser[h], ser[h+1], ser[h+2]);
         l++;
     }
+    */
 
+      /* SEND GHOST ROWS AND RETRIEVE GHOST ROWS */
+      /*
+      if (id == 0 && i == 1){
+        print_table(aux_main_table, SIZE_MAIN_TABLE);
+      }
+      */
+      
+      MPI_Request request_up;
+      int buffer_recv_up[BUFFER_MAX];
+      int TAG_SDOWN_RUP = 0;
+
+      MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
+
+      MPI_Request request_down;
+      int buffer_recv_down[BUFFER_MAX];
+      int TAG_SUP_RDOWN = 1;
+
+      MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
+
+      int send_up[num_up*3];
+      serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
+
+      MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
+
+      int send_down[num_down*3]; 
+      serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
+
+
+      MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
+
+
+      MPI_Status status_up;
+      MPI_Status status_down;
+
+      MPI_Wait(&request_up, &status_up);
+      MPI_Wait(&request_down, &status_down);
+
+      int num_recv_up;
+      int num_recv_down;
+
+      MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
+      MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
+
+      free_list(high_main_table, SIZE_SIDE_TABLE);
+      free_list(low_main_table, SIZE_SIDE_TABLE);
+      insert_table(high_main_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up);
+      insert_table(low_main_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down);
+      
+      
+      
+      if (id == 0 && i==9){
+        print_table(aux_main_table, SIZE_MAIN_TABLE);
+      }
+            
+      
    }    
+
+
         /*
         printf("------- NEXT GEN TABLE -------\n");
         print_table(aux_main_table, SIZE_MAIN_TABLE);
@@ -407,10 +471,6 @@ int main(int argc, char *argv[]){
         printf("------- GHOST ROWS SEND DOWN-- \n");
         print_table(aux_low_table, SIZE_SIDE_TABLE);
         */
-
-
-   
-   }
 
 
    /* From this point on I perform the communication of ghost cells to adjacent processes and receive the ghost cells from adjacent processes */
@@ -451,15 +511,12 @@ int main(int argc, char *argv[]){
       MPI_Recv(&number, 1, MPI_INT, 1, 0, ring_comm, &status_batch);
       printf("Number: %d", number);
    }
-   */
-   
-   
-   
+   */  
+
    elapsed_time += MPI_Wtime();
    MPI_Finalize();
 }   
-   
-   
+     
    
    
    
