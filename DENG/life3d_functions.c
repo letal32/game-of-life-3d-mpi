@@ -142,12 +142,12 @@ int num_alive_neighbours_d(cell * table, cell * aux_table, cell * aux_low_table,
             //printf("Insertion point 3: (%d, %d)\n", lowB+1, highB-1);
 		    insert(aux_table, x, y, z, SIZE_TABLE); 
 
-            if (x == mod(lowB+1, SIZE_CUBE)){
+            if (x == mod(lowB+1, SIZE_CUBE) || x == mod(lowB+2, SIZE_CUBE)){
               insert(aux_low_table, x, y, z, SIZE_B_TABLE);
               *num_down = *num_down + 1;
             }
             
-            if (x == mod(highB-1, SIZE_CUBE)){
+            if (x == mod(highB-1, SIZE_CUBE) || x == mod(highB-2, SIZE_CUBE)){
               insert(aux_high_table, x, y, z, SIZE_B_TABLE);
               *num_up = *num_up + 1;
             }
@@ -328,19 +328,16 @@ cell * push(cell * head, int x, int y, int z) {
 //Print the cells of the given linked list
 void print_list(cell ** order, int SIZE_CUBE)
 {
-    int k = 0;
      for (int i = 0; i < SIZE_CUBE; i++){
         if (order[i] != NULL){
                 cell * current =  order[i];
                 while (current->next != NULL)
                 {
-                        printf("%d: %d %d %d\n", k,current->x, current->y, current->z);
+                        printf("%d %d %d\n", current->x, current->y, current->z);
                         current = current->next;
-                        k++;
                 }
         
-        printf("%d : %d %d %d\n", k,current->x, current->y, current->z);
-        k++;
+        printf("%d %d %d\n", current->x, current->y, current->z);
         }
      }
 }
@@ -348,14 +345,6 @@ void print_list(cell ** order, int SIZE_CUBE)
 
 void print_table(cell * table, int SIZE_TABLE){
 
-    cell * order[5];
-    for (int l = 0; l<5; l++)
-              order[l] = NULL;
-   
-    ordered_list(table, order, SIZE_TABLE, 5);
-    print_list(order, 5);
-
-    /*
     int i;
     int k = 0;
     for (i = 0; i < SIZE_TABLE; i++){
@@ -379,7 +368,6 @@ void print_table(cell * table, int SIZE_TABLE){
 
 
     }
-    */
 }
 
 void serialize(cell * table, int SIZE_TABLE, int dest[], int size){
@@ -414,176 +402,13 @@ void serialize(cell * table, int SIZE_TABLE, int dest[], int size){
 
 }
 
-void insert_table(cell * table, cell * otable, int SIZE_TABLE, int * buffer, int size, int bound){
+void insert_table(cell * table, int SIZE_TABLE, int * buffer, int size){
 
     int i;
     for(i = 0; i < size; i=i+3){
-        if (buffer[i] != bound)
-            insert(table, buffer[i], buffer[i+1], buffer[i+2], SIZE_TABLE);
-        else
-            insert(otable, buffer[i], buffer[i+1], buffer[i+2], SIZE_TABLE);
+        insert(table, buffer[i], buffer[i+1], buffer[i+2], SIZE_TABLE);
     }
 
-}
-
-int num_alive_neighbours_dh(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE)
-{
-    int num_live = 0;
-    int find = search(aux_table, x, y, z, SIZE_TABLE);      
-
-    if(!find) {   
-        //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES. WE CHECK IF THE NEIGHBOURS WE WANT TO SEARCH ARE OUTSIDE THE BOUNDRIES OF
-        //table, IF THEY ARE WE SEARCH IN lowerB TABLE (ARRAY WITH ALL THE NODES IN THE LOWER BOUND) OR IN THE TABLE higherB (HIGHER BOUNDRY)
-        if(mod((x+1),SIZE_CUBE)==highB) num_live += search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE);
-        else num_live += search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE);
-
-        if(mod((x-1),SIZE_CUBE)==lowB) num_live += search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE);
-        else num_live += search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE);
-
-        num_live += search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE);
-        num_live += search(table, x, mod((y-1),SIZE_CUBE), z, SIZE_TABLE);
-        num_live += search(table, x, y, mod((z+1),SIZE_CUBE), SIZE_TABLE);
-        num_live += search(table, x, y, mod((z-1),SIZE_CUBE), SIZE_TABLE);
-
-        if(num_live==2 || num_live==3){
-            insert(aux_table, x, y, z, SIZE_TABLE); 
-        }
-    }
-
-    return num_live;
-}
-
-
-//This function count the number of alive neighbours of a given alive cell
-int num_alive_neighbours_ah(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE)
-{
-    int num_live = 0;
-  
-    //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES
-    if(mod((x+1),SIZE_CUBE)!=highB){
-        if(!search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE)) 
-            num_alive_neighbours_dh(table, aux_table, mod((x+1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-        else num_live++;
-    }else{
-        if(search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE))  num_live++;
-    }
-    
-    if(mod((x-1),SIZE_CUBE)!=lowB){
-        if(!search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE)) 
-          num_alive_neighbours_dh(table, aux_table, mod((x-1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-        else num_live++;
-    } else{
-        if(search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE)) num_live++;
-    }
-
-    //SAME    
-    if(!search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE)) 
-        num_alive_neighbours_dh(table, aux_table,  x, mod((y+1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-    else num_live++;
-    
-    if(!search(table, x, mod((y-1),SIZE_CUBE), z, SIZE_TABLE)) 
-        num_alive_neighbours_dh(table, aux_table,  x, mod((y-1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-    else num_live++;
-    
-    if(!search(table, x, y, mod((z+1),SIZE_CUBE), SIZE_TABLE)) 
-        num_alive_neighbours_dh(table, aux_table,  x, y, mod((z+1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-    else num_live++;
-    
-    if(!search(table, x, y, mod((z-1),SIZE_CUBE), SIZE_TABLE)) 
-        num_alive_neighbours_dh(table, aux_table,  x, y, mod((z-1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE);
-    else num_live++;
-
-    return num_live;
-}
-
-int num_alive_neighbours_d2(cell * table, cell * aux_table, cell * aux_low_table, cell * aux_high_table, cell* lower_row_table, cell* upper_row_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE, int SIZE_B_TABLE, int * num_down, int * num_up)
-{
-    int num_live = 0;
-    int find = search(aux_table, x, y, z, SIZE_TABLE);      
-
-    if(!find) {   
-        //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES. WE CHECK IF THE NEIGHBOURS WE WANT TO SEARCH ARE OUTSIDE THE BOUNDRIES OF
-        //table, IF THEY ARE WE SEARCH IN lowerB TABLE (ARRAY WITH ALL THE NODES IN THE LOWER BOUND) OR IN THE TABLE higherB (HIGHER BOUNDRY)
-        if(mod((x+1),SIZE_CUBE)==highB) num_live += search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_B_TABLE);
-        else num_live += search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE);
-
-        if(mod((x-1),SIZE_CUBE)==lowB) num_live += search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_B_TABLE);
-        else num_live += search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE);
-
-        num_live += search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE);
-        num_live += search(table, x, mod((y-1),SIZE_CUBE), z, SIZE_TABLE);
-        num_live += search(table, x, y, mod((z+1),SIZE_CUBE), SIZE_TABLE);
-        num_live += search(table, x, y, mod((z-1),SIZE_CUBE), SIZE_TABLE);
-
-        if(num_live==2 || num_live==3){
-            //printf("Insertion point 3: (%d, %d)\n", lowB+1, highB-1);
-            insert(aux_table, x, y, z, SIZE_TABLE); 
-
-            if (x == mod(lowB+1, SIZE_CUBE) || x == mod(lowB+2, SIZE_CUBE)){
-              insert(aux_low_table, x, y, z, SIZE_B_TABLE);
-              *num_down = *num_down + 1;
-            }
-            
-            if (x == mod(highB-1, SIZE_CUBE) || x == mod(highB-2, SIZE_CUBE)){
-              insert(aux_high_table, x, y, z, SIZE_B_TABLE);
-              *num_up = *num_up + 1;
-            }
-
-            if (x == mod(lowB+1, SIZE_CUBE)){
-                insert(lower_row_table, x, y, z, SIZE_B_TABLE);
-            }
-
-            if (x == mod(highB-1, SIZE_CUBE)){
-                insert(upper_row_table, x, y, z, SIZE_B_TABLE);
-            }
-
-        }
-    }
-
-    return num_live;
-}
-
-
-//This function count the number of alive neighbours of a given alive cell
-int num_alive_neighbours_a2(cell * table, cell * aux_table, cell * aux_low_table, cell * aux_high_table, cell* lower_row_table, cell* upper_row_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE, int SIZE_B_TABLE, int * num_down, int * num_up)
-{
-    int num_live = 0;
-  
-    //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES
-    if(mod((x+1),SIZE_CUBE)!=highB){
-        if(!search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE)) 
-            num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table, lower_row_table, upper_row_table, mod((x+1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-        else num_live++;
-    }else{
-        if(search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_B_TABLE))  num_live++;
-    }
-    
-    if(mod((x-1),SIZE_CUBE)!=lowB){
-        if(!search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE)) 
-          num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table, lower_row_table, upper_row_table,mod((x-1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-        else num_live++;
-    } else{
-        if(search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_B_TABLE)) num_live++;
-    }
-
-    //SAME    
-    if(!search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE)) 
-        num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table,lower_row_table, upper_row_table, x, mod((y+1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-    else num_live++;
-    
-    if(!search(table, x, mod((y-1),SIZE_CUBE), z, SIZE_TABLE)) 
-        num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table,lower_row_table, upper_row_table, x, mod((y-1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-    else num_live++;
-    
-    if(!search(table, x, y, mod((z+1),SIZE_CUBE), SIZE_TABLE)) 
-        num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table,lower_row_table, upper_row_table, x, y, mod((z+1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-    else num_live++;
-    
-    if(!search(table, x, y, mod((z-1),SIZE_CUBE), SIZE_TABLE)) 
-        num_alive_neighbours_d2(table, aux_table, aux_low_table, aux_high_table,lower_row_table, upper_row_table, x, y, mod((z-1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE, SIZE_B_TABLE, num_down, num_up);
-    else num_live++;
-
-    return num_live;
 }
 
 

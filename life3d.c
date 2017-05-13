@@ -38,7 +38,6 @@ int main(int argc, char *argv[]){
     */
     
    int boundaries[2*p];
-   int buffer_size[p];
    
    memset(&boundaries, -1, 2*p*sizeof(int));
       
@@ -80,13 +79,13 @@ int main(int argc, char *argv[]){
        
        int cell_proc = totcells/p; // NUMBER OF CELLS PER PROCESS (IDEALLY)
        
-       /*
+       
        for (int i = 0; i < SIZE_CUBE; i++){
             
             printf("%d : %d\n", i, count[i]);
             fflush(stdout);  
        }
-       */
+       
        //printf("-----\n %d \n", cell_proc);
        //fflush(stdout);
 
@@ -142,24 +141,7 @@ int main(int argc, char *argv[]){
        
        partials[p-1] = totcells-partial_total;
        
-      // printf("------------ BUFFER SIZE -------------- \n");
        
-       for (int i=0; i < p; i++){
-       
-            int g_cells_up = count[mod(boundaries[2*i+1]+1, SIZE_CUBE)];
-            int g_cells_down = count[mod(boundaries[2*i]-1, SIZE_CUBE)];
-            buffer_size[i] = 3*(partials[i] + g_cells_up + g_cells_down);
-            
-            /*
-            printf("Cells up for %d: %d \n", i, g_cells_up);
-            printf("Cells down for %d: %d \n", i, g_cells_down);
-            printf("Size of buffer of %d: %d \n", i, 3*(partials[i] + g_cells_up + g_cells_down));
-            fflush(stdout);
-            */
-            
-       }
-       
-       /*
        printf("-------------- BOUNDARIES ------------\n");
        
        for (int i = 0; i < 2*p; i++){
@@ -177,7 +159,7 @@ int main(int argc, char *argv[]){
             fflush(stdout);  
        }
        printf("\n");
-       */
+       
        
       
    }
@@ -196,111 +178,11 @@ int main(int argc, char *argv[]){
    /* x coordinates of the upper and lower ghost rows (rows sent from neighbours) */
    int ghost_up = mod(bound_high+1, SIZE_CUBE);   
    int ghost_down = mod(bound_low-1, SIZE_CUBE);
-
-   /*
-   printf("Ghost up process %d: %d\n", id, ghost_up);
-   printf("Ghost down process %d: %d\n", id, ghost_down);
-  */
-   
-   /*
-   printf("Process %d boundaries: [%d, %d]\n", id, bound_low, bound_high);
-   fflush(stdout);
-  */
-   /*
-   printf("Process %d SIZE_CUBE: %d\n", id, SIZE_CUBE);
-   fflush(stdout);
-    */
-    
-   /*Process 0 sends to all other processes the packet of cells they have to elaborate */
-   int *buffer0;
-   if (id == 0){
-        buffer0 = malloc(sizeof(int)*buffer_size[0]);
-        for (int i = p-1; i >= 0; i--){
-            
-            int buffer[buffer_size[i]];
-            
-            FILE *file = fopen (argv[1], "r");
-            fgets(line, sizeof(line), file);
-            
-            int k = 0;
-            int l = 0;
-            while (fgets(line, sizeof(line), file)) {
-                points = strtok(line, " ");
-                x = atoi(points);
-                points = strtok (NULL, " ");
-                y= atoi(points);
-                points = strtok (NULL, " ");
-                z = atoi(points);
-                
-                if ((i != 0) && (x >= boundaries[2*i] && x <= boundaries[2*i+1]) || (x == mod(boundaries[2*i]-1, SIZE_CUBE)) || (x==mod(boundaries[2*i+1]+1, SIZE_CUBE))){
-                    buffer[k] = x;
-                    buffer[k+1] = y;
-                    buffer[k+2] = z;
-                    k += 3;
-                }    
-
-                if ((i == 0) && (x >= boundaries[2*i] && x <= boundaries[2*i+1]) || (x == mod(boundaries[2*i]-1, SIZE_CUBE)) || (x==mod(boundaries[2*i+1]+1, SIZE_CUBE))){
-                    buffer0[l] = x;
-                    buffer0[l+1] = y;
-                    buffer0[l+2] = z;
-                    l += 3;
-                }
-                
-            } 
-       
-            fclose (file); 
-            
-            /*
-            printf("------------ Process %d BUFFER -----------\n", i);
-            
-            for (int j = 0; j < buffer_size[i]-2; j=j+3){
-                printf("(%d, %d, %d)\n", buffer[j], buffer[j+1], buffer[j+2]);
-                fflush(stdout);
-            }
-            
-            */
-            /* Send the array to processes */
-            
-            if (i != 0)
-                MPI_Send(&buffer, buffer_size[i], MPI_INT, i, 0, MPI_COMM_WORLD);
-            
-            
-        }     
-   }
-   
-
-   
-   /* TODO: (Only if sending arrays doesn't work) Each process reads the file and retains only the values */
-   
-   /* Receive the first cell batch */
-
-   int first_batch[BUFFER_MAX];
-   MPI_Status status_batch;
-   int count_batch;
-
-   if (id != 0){
-        MPI_Recv(&first_batch, BUFFER_MAX, MPI_INT, 0, 0, MPI_COMM_WORLD, &status_batch);
-        MPI_Get_count(&status_batch, MPI_INT, &count_batch);
-        //printf("Received %d\n", count_batch);
-        /*
-        if (id == 3){
-        printf ("--------------PROCESS %d -----------\n", id);
-        for (int j = 0; j < count_batch; j = j+3){
-            printf("(%d, %d, %d)\n", first_batch[j], first_batch[j+1], first_batch[j+2]);
-            fflush(stdout);
-            
-        }  
-      }
-      */
-
-      //printf("Process %d is here\n", id );
-   }
-
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
   int SIZE_MAIN_TABLE = 103001;  //The main table has more entries
-  int SIZE_SIDE_TABLE = 50023;   //The tables containing only ghost rows have less entries on average so the table can be smaller
+  int SIZE_SIDE_TABLE = 103001;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
   memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
@@ -320,27 +202,96 @@ int main(int argc, char *argv[]){
   cell * aux_high_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
   memset(aux_high_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
 
-  if (id != 0)
-    insert_first_batch(aux_main_table, low_main_table, high_main_table, first_batch, count_batch, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
-  else
-    insert_first_batch(aux_main_table, low_main_table, high_main_table, buffer0, buffer_size[0], SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, ghost_down, ghost_up);
+  cell * additional_high_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(additional_high_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
 
+  cell * additional_low_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(additional_low_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * high_next_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(high_next_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * low_next_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(low_next_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * upper_row_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(upper_row_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+  cell * lower_row_table = malloc(SIZE_SIDE_TABLE*sizeof(cell));
+  memset(lower_row_table, -1, SIZE_SIDE_TABLE*sizeof(cell));
+
+
+  FILE *file = fopen (argv[1], "r");
+  fgets(line, sizeof(line), file);
+  while (fgets(line, sizeof(line), file)) {
+                
+      points = strtok(line, " ");
+      x = atoi(points);
+      points = strtok (NULL, " ");
+      y= atoi(points);
+      points = strtok (NULL, " ");
+      z = atoi(points);
+                
+      if (x >= boundaries[2*id] && x <= boundaries[2*id+1]) {
+          insert(aux_main_table, x, y, z, SIZE_MAIN_TABLE);
+      }    
+
+      //if (x == boundaries[2*id]) {
+      //    insert(lower_row_table, x, y, z, SIZE_SIDE_TABLE);
+      //} 
+
+      //if (x == boundaries[2*id+1]) {
+      //    insert(upper_row_table, x, y, z, SIZE_SIDE_TABLE);
+      //} 
+
+      if (x == mod(boundaries[2*id]-1, SIZE_CUBE) || x == mod(boundaries[2*id]-2, SIZE_CUBE) || x == boundaries[2*id]) {
+          insert(low_main_table, x, y, z, SIZE_SIDE_TABLE);
+      } 
+
+      //if (x == mod(boundaries[2*id]-2, SIZE_CUBE)) {
+      //    insert(additional_low_table, x, y, z, SIZE_SIDE_TABLE);
+      //}
+
+      if (x==mod(boundaries[2*id+1]+1, SIZE_CUBE) || x==mod(boundaries[2*id+1]+2, SIZE_CUBE) || x == boundaries[2*id+1]){
+          insert(high_main_table, x, y, z, SIZE_SIDE_TABLE);
+      }
+
+      //if (x==mod(boundaries[2*id+1]+2, SIZE_CUBE)){
+      //    insert(additional_high_table, x, y, z, SIZE_SIDE_TABLE);
+      //}
+  } 
+       
+  fclose (file); 
   /*
-  if (id  == 2){
+  if (id == 1){
+    printf("-----------AUX MAIN TABLE -----\n");
     print_table(aux_main_table, SIZE_MAIN_TABLE);
-  }*/
-  
 
-  /* Tables are ready... FROM HERE ON THE MAIN ALGORITHM SHOULD START! */
-  
+    printf("-----------LOW MAIN TABLE -----\n");
+    print_table(low_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL LOW TABLE -----\n");
+    print_table(additional_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH MAIN TABLE -----\n");
+    print_table(high_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL HIGH TABLE -----\n");
+    print_table(additional_high_table, SIZE_SIDE_TABLE);
+
+  }
+  */
+
   int i;
   cell *aux;
+  cell *aux2;
+  cell *aux3;
   cell current;
   int neighbours;
   int proc_up = mod(id + 1, p);
   int proc_down = mod(id-1, p);
 
-  //printf("Process %d: up --> %d, down --> %d\n", id, proc_up, proc_down);
+
   for (i=0; i<iter; i++){
    
     aux=cur_main_table;
@@ -353,258 +304,351 @@ int main(int argc, char *argv[]){
     int num_up = 0;
     int num_down = 0;
 
-    for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
-      current = cur_main_table[temp];
-      if(current.key!=-1){
-        neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
-        if (neighbours>=2 && neighbours<=4){
-          //printf("Insertion point 1: (%d, %d)\n", bound_low, bound_high);
-          insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+    if (i % 2 == 0){
 
-          if (current.x == bound_low){
-            insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-            num_down = num_down + 1;
-          }
-
-          if (current.x == bound_high){
-            insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-            num_up = num_up + 1;
-          }
-        }
-
-        while (current.next != NULL) {
-          current=*current.next;
-          neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+      for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+        current = cur_main_table[temp];
+        if(current.key!=-1){
+          neighbours= num_alive_neighbours_ah(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE);
           if (neighbours>=2 && neighbours<=4){
-            //printf("Insertion point 2: (%d, %d)\n", bound_low, bound_high);
+
             insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
 
-            if (current.x == bound_low){
-              insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-              num_down = num_down+1;
-            }
-
-            if (current.x == bound_high){
-              insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-              num_up = num_up+1;
-            }
-          }
-        } 
-      }
-    }
-    
-    /*
-    //printf("NumUP: %d, NumDOWN: %d\n", num_up, num_down );
-    int * ser = serialize(aux_low_table, SIZE_SIDE_TABLE, num_down*3);
-    int l = 0;
-    for (int h = 0; h < num_down*3; h=h+3){
-        printf("%d : (%d, %d, %d)\n", l, ser[h], ser[h+1], ser[h+2]);
-        l++;
-    }
-    */
-
-      /* SEND GHOST ROWS AND RETRIEVE GHOST ROWS */
-      /*
-      if (id == 0 && i == 0){
-        print_table(cur_main_table, SIZE_MAIN_TABLE);
-      }
-      */
-
-      /*   
-      if (id == 0){
-        printf("PROCESS 0");
-
-        printf("-----GENERATION %d NGT -----\n", i );
-        print_table(aux_main_table, SIZE_MAIN_TABLE);
-        printf("-----GENERATION %d LMT------\n", i);
-        print_table(low_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(high_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d LAT------\n", i);
-        print_table(aux_low_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(aux_high_table, SIZE_SIDE_TABLE);
-      }
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      if (id == 1){
-        printf("PROCESS 1");
-        printf("-----GENERATION %d NGT -----\n", i );
-        print_table(aux_main_table, SIZE_MAIN_TABLE);
-        printf("-----GENERATION %d LMT------\n", i);
-        print_table(low_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(high_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d LAT------\n", i);
-        print_table(aux_low_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(aux_high_table, SIZE_SIDE_TABLE);
-      }
-      */
-      
-      MPI_Request request_up;
-      int buffer_recv_up[BUFFER_MAX];
-      int TAG_SDOWN_RUP = 0;
-
-      MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
-
-      MPI_Request request_down;
-      int buffer_recv_down[BUFFER_MAX];
-      int TAG_SUP_RDOWN = 1;
-
-      MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
-
-      int send_up[num_up*3];
-      serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
-
-      MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
-
-      int send_down[num_down*3]; 
-      serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
-
-
-      MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
-
-
-      MPI_Status status_up;
-      MPI_Status status_down;
-
-      MPI_Wait(&request_up, &status_up);
-      MPI_Wait(&request_down, &status_down);
-
-      int num_recv_up;
-      int num_recv_down;
-
-      MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
-      MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
-
-      free_list(high_main_table, SIZE_SIDE_TABLE);
-      free_list(low_main_table, SIZE_SIDE_TABLE);
-      insert_table(high_main_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up);
-      insert_table(low_main_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down);
-      free_list(aux_high_table, SIZE_SIDE_TABLE);
-      free_list(aux_low_table, SIZE_SIDE_TABLE);
-      
-      
-      /*
-      if (id == 0){
-        printf("PROCESS 0");
-
-        printf("-----GENERATION %d NGT -----\n", i );
-        print_table(aux_main_table, SIZE_MAIN_TABLE);
-        printf("-----GENERATION %d LMT------\n", i);
-        print_table(low_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(high_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d LAT------\n", i);
-        print_table(aux_low_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(aux_high_table, SIZE_SIDE_TABLE);
-      }
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      if (id == 1){
-        printf("PROCESS 1");
-        printf("-----GENERATION %d NGT -----\n", i );
-        print_table(aux_main_table, SIZE_MAIN_TABLE);
-        printf("-----GENERATION %d LMT------\n", i);
-        print_table(low_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(high_main_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d LAT------\n", i);
-        print_table(aux_low_table, SIZE_SIDE_TABLE);
-        printf("-----GENERATION %d HMT------\n", i);
-        print_table(aux_high_table, SIZE_SIDE_TABLE);
-      }
-      */
-      
-      
-      
-      if (i == iter-1){
-   
-          cell * order[SIZE_CUBE];
-          for (int l = 0; l<SIZE_CUBE; l++)
-              order[l] = NULL;
-   
-          ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
-
-          if (id == 0){
-            print_list(order, SIZE_CUBE);
-            int ready = 1;
-            MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
-          } else {
-            int ready;
-            MPI_Status stat;
-            MPI_Recv(&ready, 1, MPI_INT, proc_down, 9, MPI_COMM_WORLD, &stat);
-            print_list(order, SIZE_CUBE);
-
-            if (proc_up != 0){
-              int ready = 1;
-              MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
-            }
           }
 
+          while (current.next != NULL) {
+            current=*current.next;
+            neighbours= num_alive_neighbours_ah(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE);
+            if (neighbours>=2 && neighbours<=4){
+
+              insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+            }
+          } 
+        }
       }
-      
-      
-   }    
+            /*
+            if (id == 1){
+                                
+                        printf("-----------AUX MAIN TABLE -----\n");
+                        print_table(aux_main_table, SIZE_MAIN_TABLE);
+
+                        printf("-----------CUR MAIN TABLE -----\n");
+                        print_table(cur_main_table, SIZE_MAIN_TABLE);
+
+                        printf("-----------LOW MAIN TABLE -----\n");
+                        print_table(low_main_table, SIZE_SIDE_TABLE);
+
+                        printf("-----------HIGH MAIN TABLE -----\n");
+                        print_table(high_main_table, SIZE_SIDE_TABLE);
+            }
+            */
+
+        free_list(high_next_table, SIZE_SIDE_TABLE);
+        free_list(low_next_table, SIZE_SIDE_TABLE);
 
 
-        /*
-        printf("------- NEXT GEN TABLE -------\n");
-        print_table(aux_main_table, SIZE_MAIN_TABLE);
+      for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
+        current = high_main_table[temp];
+        if(current.key!=-1){
+          neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, upper_row_table, additional_high_table, bound_high, mod(bound_high+2, SIZE_CUBE), SIZE_SIDE_TABLE, SIZE_CUBE);
+          if (neighbours>=2 && neighbours<=4){
 
-        printf("------- GHOST ROWS SEND UP----\n");
-        print_table(aux_high_table, SIZE_SIDE_TABLE);
+            insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
 
-        printf("------- GHOST ROWS SEND DOWN-- \n");
-        print_table(aux_low_table, SIZE_SIDE_TABLE);
-        */
+          }
+
+          while (current.next != NULL) {
+            current=*current.next;
+            neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, upper_row_table, additional_high_table, bound_high,mod(bound_high+2, SIZE_CUBE), SIZE_SIDE_TABLE, SIZE_CUBE);            
+            if (neighbours>=2 && neighbours<=4){
+
+              insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+            }
+          } 
+        }
+      }
+
+        for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
+        current = low_main_table[temp];
+        if(current.key!=-1){
+          neighbours= num_alive_neighbours_ah(low_main_table, low_next_table, current.x, current.y, current.z, additional_low_table, lower_row_table, mod(bound_low-2, SIZE_CUBE),bound_low, SIZE_SIDE_TABLE, SIZE_CUBE);
+          if (neighbours>=2 && neighbours<=4){
+
+            insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+          }
+
+          while (current.next != NULL) {
+            current=*current.next;
+            neighbours= num_alive_neighbours_ah(low_main_table, low_next_table, current.x, current.y, current.z, additional_low_table, lower_row_table, mod(bound_low-2, SIZE_CUBE),bound_low, SIZE_SIDE_TABLE, SIZE_CUBE);            
+            if (neighbours>=2 && neighbours<=4){
+
+              insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+            }
+          } 
+        }
+      }
+                           if (id == 1){
+                                
+
+    printf("-----------LOW MAIN TABLE -----\n");
+    print_table(low_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL LOW TABLE -----\n");
+    print_table(additional_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH MAIN TABLE -----\n");
+    print_table(high_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL HIGH TABLE -----\n");
+    print_table(additional_high_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH NEXT TABLE -----\n");
+    print_table(high_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOW NEXT TABLE -----\n");
+    print_table(low_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOWER ROW TABLE -----\n");
+    print_table(lower_row_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGHER ROW TABLE -----\n");
+    print_table(upper_row_table, SIZE_SIDE_TABLE);
+
+  }
 
 
-   /* From this point on I perform the communication of ghost cells to adjacent processes and receive the ghost cells from adjacent processes */
-   
-   
-   
-   
-   /* Next generation starts */
-   
-   
-   
-   /*
-   int dim[1],period[1];
-   dim[0] = p;
-   period[0] = 1;
-   
-   MPI_Comm ring_comm;
-   MPI_Cart_create(MPI_COMM_WORLD, 1, dim, period, 0, &ring_comm);
+    } else {
+              free_list(upper_row_table, SIZE_SIDE_TABLE);
+              free_list(lower_row_table, SIZE_SIDE_TABLE);
 
-   int coords[] = {1}; 
-   
- 
-   if (id == 0){
-   for (int i = 0; i < p; i++){
-        MPI_Cart_coords(ring_comm, i, 1, coords);
-        printf("---------- %d --------------\n", coords[0]);
-   }
-   }
-  
-   
-   if (id == 1){
-       int number = 1;
-       MPI_Send(&number, 1, MPI_INT, 3, 0, ring_comm);
-   }
-   
-   if (id == 3){
-      int number;
-      MPI_Recv(&number, 1, MPI_INT, 1, 0, ring_comm, &status_batch);
-      printf("Number: %d", number);
-   }
-   */  
+              for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+              current = cur_main_table[temp];
+              if(current.key!=-1){
+                neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, lower_row_table, upper_row_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+                if (neighbours>=2 && neighbours<=4){
 
+                  insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                  if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
+                    insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                    num_down = num_down + 1;
+                  }
+
+                  if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
+                    insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                    num_up = num_up + 1;
+                  }
+
+                  if (current.x == bound_low){
+                    insert(lower_row_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                  }
+
+                  if (current.x == bound_high){
+                    insert(upper_row_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                  }
+                }
+
+                while (current.next != NULL) {
+                  current=*current.next;
+                  neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, lower_row_table, upper_row_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+                  if (neighbours>=2 && neighbours<=4){
+
+
+                    insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                    if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
+                      insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                      num_down = num_down + 1;
+                    }
+
+                    if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
+                      insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                      num_up = num_up + 1;
+                    }
+
+                    if (current.x == bound_low){
+                      insert(lower_row_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                    }
+
+                    if (current.x == bound_high){
+                      insert(upper_row_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                    }
+                  }
+                } 
+              }
+            }
+
+              /*            if (id == 1){
+                                
+                        printf("-----------AUX MAIN TABLE -----\n");
+                        print_table(aux_main_table, SIZE_MAIN_TABLE);
+
+                        printf("-----------CUR MAIN TABLE -----\n");
+                        print_table(cur_main_table, SIZE_MAIN_TABLE);
+
+                        printf("-----------LOW NEXT TABLE -----\n");
+                        print_table(low_next_table, SIZE_SIDE_TABLE);
+
+                        printf("-----------HIGH NEXT TABLE -----\n");
+                        print_table(high_next_table, SIZE_SIDE_TABLE);
+            }*/
+
+
+
+/*
+                                          if (id == 1){
+                                printf("-------------------------------------------------ITERATION %d (ELSE)--------------------\n", i );
+                        printf("-----------AUX MAIN TABLE -----\n");
+                        print_table(aux_main_table, SIZE_MAIN_TABLE);
+
+              printf("-----------LOW MAIN TABLE -----\n");
+    print_table(low_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL LOW TABLE -----\n");
+    print_table(additional_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH MAIN TABLE -----\n");
+    print_table(high_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL HIGH TABLE -----\n");
+    print_table(additional_high_table, SIZE_SIDE_TABLE);
+
+    printf("-----------AUX HIGH TABLE -----\n");
+    print_table(aux_high_table, SIZE_SIDE_TABLE);
+
+    printf("-----------AUX LOW TABLE -----\n");
+    print_table(aux_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH NEXT TABLE -----\n");
+    print_table(high_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOW NEXT TABLE -----\n");
+    print_table(low_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOWER ROW TABLE -----\n");
+    print_table(lower_row_table, SIZE_SIDE_TABLE);
+}
+*/            
+
+              free_list(high_next_table, SIZE_SIDE_TABLE);
+              free_list(low_next_table, SIZE_SIDE_TABLE);
+
+              MPI_Request request_up;
+              int buffer_recv_up[BUFFER_MAX];
+              int TAG_SDOWN_RUP = 0;
+
+              MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
+
+              MPI_Request request_down;
+              int buffer_recv_down[BUFFER_MAX];
+              int TAG_SUP_RDOWN = 1;
+
+              MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
+
+              int send_up[num_up*3];
+              serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
+
+              MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
+
+              int send_down[num_down*3]; 
+              serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
+              /*
+              if (id == 0){
+                for (int u = 0; u < num_down*3; u = u+3){
+                    printf("(%d, %d, %d)\n", send_down[u], send_down[u+1], send_down[u+2]);
+                }
+              }
+              */
+              MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
+
+
+              MPI_Status status_up;
+              MPI_Status status_down;
+
+              MPI_Wait(&request_up, &status_up);
+              MPI_Wait(&request_down, &status_down);
+
+
+
+              int num_recv_up;
+              int num_recv_down;
+
+              MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
+              MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
+              /*
+              if (id == 0 && i == 1){
+                for (int u = 0; u < num_recv_down; u = u+3){
+                    printf("(%d, %d, %d)\n", buffer_recv_down[u], buffer_recv_down[u+1], buffer_recv_down[u+2]);
+                }
+              }
+              */
+              free_list(high_main_table, SIZE_SIDE_TABLE);
+              free_list(low_main_table, SIZE_SIDE_TABLE);
+              free_list(additional_high_table, SIZE_SIDE_TABLE);
+              free_list(additional_low_table, SIZE_SIDE_TABLE);
+
+              insert_table(high_main_table, additional_high_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up, mod(bound_high+2, SIZE_CUBE));
+              insert_table(low_main_table, additional_low_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down, mod(bound_low-2, SIZE_CUBE));
+              
+            /*    
+            if (id == 1){
+                                
+                        printf("-----------AUX HIGH TABLE -----\n");
+                        print_table(aux_high_table, SIZE_SIDE_TABLE);
+
+                        printf("-----------AUX LOW TABLE -----\n");
+                        print_table(aux_low_table, SIZE_SIDE_TABLE);
+            }
+            */
+              
+              free_list(aux_high_table, SIZE_SIDE_TABLE);
+              free_list(aux_low_table, SIZE_SIDE_TABLE);
+    }
+
+                                          /*    if (id == 0){
+                                
+                        printf("-----------AUX MAIN TABLE -----\n");
+                        print_table(aux_main_table, SIZE_MAIN_TABLE);
+
+              printf("-----------LOW MAIN TABLE -----\n");
+    print_table(low_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL LOW TABLE -----\n");
+    print_table(additional_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH MAIN TABLE -----\n");
+    print_table(high_main_table, SIZE_SIDE_TABLE);
+
+    printf("-----------ADDITIONAL HIGH TABLE -----\n");
+    print_table(additional_high_table, SIZE_SIDE_TABLE);
+
+    printf("-----------AUX HIGH TABLE -----\n");
+    print_table(aux_high_table, SIZE_SIDE_TABLE);
+
+    printf("-----------AUX LOW TABLE -----\n");
+    print_table(aux_low_table, SIZE_SIDE_TABLE);
+
+    printf("-----------HIGH NEXT TABLE -----\n");
+    print_table(high_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOW NEXT TABLE -----\n");
+    print_table(low_next_table, SIZE_SIDE_TABLE);
+
+    printf("-----------LOWER ROW TABLE -----\n");
+    print_table(lower_row_table, SIZE_SIDE_TABLE);
+
+        printf("-----------UPPER ROW TABLE -----\n");
+    print_table(upper_row_table, SIZE_SIDE_TABLE);
+}
+*/
+}
    elapsed_time += MPI_Wtime();
+
+   //printf("%f\n", elapsed_time);
    MPI_Finalize();
 }   
      
