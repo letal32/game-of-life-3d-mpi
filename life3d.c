@@ -181,7 +181,7 @@ int main(int argc, char *argv[]){
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
-  int SIZE_MAIN_TABLE = 103001;  //The main table has more entries
+  int SIZE_MAIN_TABLE = 22721;  //The main table has more entries
   int SIZE_SIDE_TABLE = 22721;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
@@ -259,10 +259,9 @@ int main(int argc, char *argv[]){
     if (i % 2 == 0){
 
       for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
-        printf("%d : HERE\n", temp);
         current = cur_main_table[temp];
         if(current.key!=-1){
-          neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE);
+          neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
           if (neighbours>=2 && neighbours<=4){
 
             insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
@@ -271,7 +270,7 @@ int main(int argc, char *argv[]){
 
           while (current.next != NULL) {
             current=*current.next;
-            neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE);
+            neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
             if (neighbours>=2 && neighbours<=4){
 
               insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);

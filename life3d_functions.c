@@ -204,7 +204,7 @@ int num_alive_neighbours_a(cell * table, cell * aux_table, cell * aux_low_table,
 // This function frees the memory in the hashtable and set everything to -1 again
 void free_list(cell * table, int SIZE_TABLE)
 {       
-
+    /*
     for(int temp=0; temp<SIZE_TABLE; temp++){
         
         cell test;
@@ -218,7 +218,7 @@ void free_list(cell * table, int SIZE_TABLE)
 		    }   
         }
     }
-    
+    */
     memset(table, -1, SIZE_TABLE*sizeof(cell));
 }
 
@@ -688,7 +688,7 @@ int num_alive_neighbours_a2(cell * table, cell * aux_table, cell * aux_low_table
     return num_live;
 }
 
-int num_alive_neighbours_df(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE) 
+int num_alive_neighbours_df(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_B_TABLE, int SIZE_CUBE) 
 { 
     int num_live = 0; 
     int find = search(aux_table, x, y, z, SIZE_TABLE);       
@@ -696,10 +696,10 @@ int num_alive_neighbours_df(cell * table, cell * aux_table, int x, int y, int z,
     if(!find) {    
         //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES. WE CHECK IF THE NEIGHBOURS WE WANT TO SEARCH ARE OUTSIDE THE BOUNDRIES OF 
         //table, IF THEY ARE WE SEARCH IN lowerB TABLE (ARRAY WITH ALL THE NODES IN THE LOWER BOUND) OR IN THE TABLE higherB (HIGHER BOUNDRY) 
-        if(mod((x+1),SIZE_CUBE)==highB) num_live += search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE); 
+        if(mod((x+1),SIZE_CUBE)==highB) num_live += search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_B_TABLE); 
         else num_live += search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE); 
  
-        if(mod((x-1),SIZE_CUBE)==lowB) num_live += search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE); 
+        if(mod((x-1),SIZE_CUBE)==lowB) num_live += search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_B_TABLE); 
         else num_live += search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE); 
  
         num_live += search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE); 
@@ -717,42 +717,42 @@ int num_alive_neighbours_df(cell * table, cell * aux_table, int x, int y, int z,
  
  
 //This function count the number of alive neighbours of a given alive cell 
-int num_alive_neighbours_af(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE) 
+int num_alive_neighbours_af(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_B_TABLE, int SIZE_CUBE) 
 { 
     int num_live = 0; 
    
     //THE ONLY CHANGE NECESSARY IS IN THE X COORDINATES 
     if(mod((x+1),SIZE_CUBE)!=highB){ 
         if(!search(table, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE))  
-            num_alive_neighbours_df(table, aux_table, mod((x+1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+            num_alive_neighbours_df(table, aux_table, mod((x+1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
         else num_live++; 
     }else{ 
-        if(search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_TABLE))  num_live++; 
+        if(search(higherB, mod((x+1),SIZE_CUBE), y, z, SIZE_B_TABLE))  num_live++; 
     } 
      
     if(mod((x-1),SIZE_CUBE)!=lowB){ 
         if(!search(table, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE))  
-          num_alive_neighbours_df(table, aux_table, mod((x-1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+          num_alive_neighbours_df(table, aux_table, mod((x-1),SIZE_CUBE), y, z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
         else num_live++; 
     } else{ 
-        if(search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_TABLE)) num_live++; 
+        if(search(lowerB, mod((x-1),SIZE_CUBE), y, z, SIZE_B_TABLE)) num_live++; 
     } 
  
     //SAME     
     if(!search(table, x, mod((y+1),SIZE_CUBE), z, SIZE_TABLE))  
-        num_alive_neighbours_df(table, aux_table,  x, mod((y+1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+        num_alive_neighbours_df(table, aux_table,  x, mod((y+1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
     else num_live++; 
      
     if(!search(table, x, mod((y-1),SIZE_CUBE), z, SIZE_TABLE))  
-        num_alive_neighbours_df(table, aux_table,  x, mod((y-1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+        num_alive_neighbours_df(table, aux_table,  x, mod((y-1),SIZE_CUBE), z, lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
     else num_live++; 
      
     if(!search(table, x, y, mod((z+1),SIZE_CUBE), SIZE_TABLE))  
-        num_alive_neighbours_df(table, aux_table,  x, y, mod((z+1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+        num_alive_neighbours_df(table, aux_table,  x, y, mod((z+1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
     else num_live++; 
      
     if(!search(table, x, y, mod((z-1),SIZE_CUBE), SIZE_TABLE))  
-        num_alive_neighbours_df(table, aux_table,  x, y, mod((z-1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_CUBE); 
+        num_alive_neighbours_df(table, aux_table,  x, y, mod((z-1),SIZE_CUBE), lowerB, higherB, lowB, highB, SIZE_TABLE, SIZE_B_TABLE, SIZE_CUBE); 
     else num_live++; 
  
     return num_live; 

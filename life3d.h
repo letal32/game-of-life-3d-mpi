@@ -24,9 +24,13 @@ void print_list(cell ** order, int SIZE_CUBE);
 void insert_first_batch(cell * cur_table, cell* cur_table_low, cell* cur_table_high, int buffer[], int count, int SIZE_MAIN_TABLE, int SIZE_SIDE_TABLE, int lowB, int highB);
 void print_table(cell * table, int SIZE_TABLE);
 void serialize(cell * table, int SIZE_TABLE, int dest[], int size);
-void insert_table(cell * table, cell * otable, int SIZE_TABLE, int * buffer, int size, int bound);
-int num_alive_neighbours_dh(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE);
-int num_alive_neighbours_ah(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_CUBE);
+void insert_table(cell * table, int SIZE_TABLE, int * buffer, int size);
+int num_alive_neighbours_dh(cell * table, cell * aux_table, int x, int y, int z, int SIZE_TABLE, int SIZE_CUBE, int bound_high);
+int num_alive_neighbours_ah(cell * table, cell * aux_table, int x, int y, int z, int SIZE_TABLE, int SIZE_CUBE, int bound_high);
+int num_alive_neighbours_al(cell * table, cell * aux_table, int x, int y, int z, int SIZE_TABLE, int SIZE_CUBE, int bound_low);
+int num_alive_neighbours_dl(cell * table, cell * aux_table, int x, int y, int z, int SIZE_TABLE, int SIZE_CUBE, int bound_low);
+int num_alive_neighbours_af(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_B_TABLE, int SIZE_CUBE);
+int num_alive_neighbours_df(cell * table, cell * aux_table, int x, int y, int z, cell * lowerB, cell * higherB, int lowB, int highB, int SIZE_TABLE, int SIZE_B_TABLE, int SIZE_CUBE);
 
 
 #endif
