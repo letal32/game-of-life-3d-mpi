@@ -108,24 +108,32 @@ int main(int argc, char *argv[]){
        int partials[p];
        int j = 1;
        int k = 0;
-       for (int i = 0; i < SIZE_CUBE; i++){
-            partial_sum += count[i];
-            
-            if (j == 2*p-1 || i == SIZE_CUBE-1){
-                boundaries[j] = SIZE_CUBE-1;
-                break;
+       int i;
+       for(i=0;i<SIZE_CUBE;i++){
+
+            if(j==2*p-1 || i==SIZE_CUBE-1){
+              boundaries[j]=SIZE_CUBE-1;
+              break;
             }
+            partial_total+=count[i];
             
-            partial_total += count[i];
-            
-            if (partial_sum >= perc*cell_proc){
-                boundaries[j] = i;
-                boundaries[j+1] = i+1;
-                j += 2;
-                partials[k] = partial_sum;
-                k++;
-                partial_sum = 0;
-            } 
+            if(partial_sum + count[i]>cell_proc && cell_proc-partial_sum){
+              boundaries[j]=i;
+              boundaries[j+1]=i+1;
+              j+=2;
+              partials[k]=partial_sum+count[i];
+              k++;
+              cell_proc=(totcells-partial_total)/(p-k);
+              partial_sum=0;
+            } else if(partial_sum + count[i] > cell_proc){
+              boundaries[j]=i-1;
+              boundaries[j+1]=i;
+              j+=2;
+              partials[k]=partial_sum;
+              k++;
+              cell_proc=(totcells-partial_total+count[i])/(p-k);
+              partial_sum=count[i];
+            } else partial_sum +=count[i];
        }
        
        /* Check if boundaries have been computed correctly */
@@ -141,7 +149,7 @@ int main(int argc, char *argv[]){
        
        partials[p-1] = totcells-partial_total;
        
-       
+       /*
        printf("-------------- BOUNDARIES ------------\n");
        
        for (int i = 0; i < 2*p; i++){
@@ -159,7 +167,7 @@ int main(int argc, char *argv[]){
             fflush(stdout);  
        }
        printf("\n");
-       
+       */
        
       
    }
@@ -450,21 +458,30 @@ int main(int argc, char *argv[]){
    
           ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
 
-          if (id == 0){
-            print_list(order, SIZE_CUBE);
-            int ready = 1;
-            MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
-          } else {
-            int ready;
-            MPI_Status stat;
-            MPI_Recv(&ready, 1, MPI_INT, proc_down, 9, MPI_COMM_WORLD, &stat);
-            print_list(order, SIZE_CUBE);
+          elapsed_time += MPI_Wtime();
 
-            if (proc_up != 0){
-              int ready = 1;
-              MPI_Send(&ready, 1, MPI_INT, proc_up, 9, MPI_COMM_WORLD);
+          
+          char buffer[500000];
+          print_list(order, SIZE_CUBE,buffer);
+          
+          if (id == 0){
+            printf("%s", buffer);
+            fflush(stdout);
+            char buffer_ord[500000];
+
+            for (int q = 1; q < p; q++){
+              MPI_Status stat;
+              MPI_Recv(buffer_ord, 500000, MPI_CHAR, q, 9, MPI_COMM_WORLD, &stat);
+              printf("%s", buffer_ord);
+              fflush(stdout);
             }
+
+          } else {
+
+            MPI_Send(buffer, 500000, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
           }
+          
+          
 
       }
 
@@ -472,9 +489,10 @@ int main(int argc, char *argv[]){
 
 
 }
-   elapsed_time += MPI_Wtime();
 
-   printf("%f\n", elapsed_time);
+   if (id == 0){
+      printf("%f\n", elapsed_time);
+   }
    MPI_Finalize();
 }   
      

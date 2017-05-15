@@ -326,23 +326,25 @@ cell * push(cell * head, int x, int y, int z) {
 
 
 //Print the cells of the given linked list
-void print_list(cell ** order, int SIZE_CUBE)
+void print_list(cell ** order, int SIZE_CUBE, char * buffer)
 {
      for (int i = 0; i < SIZE_CUBE; i++){
         if (order[i] != NULL){
                 cell * current =  order[i];
                 while (current->next != NULL)
                 {
-                        printf("%d %d %d\n",current->x, current->y, current->z);
+                        sprintf(buffer + strlen(buffer), "%d %d %d\n",current->x, current->y, current->z);
+                        //fflush(stdout);
                         current = current->next;
                 }
         
-        printf("%d %d %d\n",current->x, current->y, current->z);
+        sprintf(buffer + strlen(buffer), "%d %d %d\n",current->x, current->y, current->z);
+        //fflush(stdout);
         }
      }
 }
 
-
+/*
 void print_table(cell * table, int SIZE_TABLE){
 
     cell * order[5];
@@ -352,7 +354,7 @@ void print_table(cell * table, int SIZE_TABLE){
     ordered_list(table, order, SIZE_TABLE, 5);
     print_list(order, 5);
 
-    /*
+    
     int i;
     int k = 0;
     for (i = 0; i < SIZE_TABLE; i++){
@@ -376,9 +378,9 @@ void print_table(cell * table, int SIZE_TABLE){
 
 
     }
-    */
+    
 }
-
+*/
 void serialize(cell * table, int SIZE_TABLE, int dest[], int size){
 
     int i;

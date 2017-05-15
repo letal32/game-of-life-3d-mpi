@@ -20,7 +20,7 @@ int num_alive_neighbours_a2(cell * table, cell * aux_table, cell * aux_low_table
 void free_list(cell * table, int SIZE_TABLE);
 void ordered_list(cell * table, cell ** order,  int SIZE_TABLE, int SIZE_CUBE);
 cell * push(cell * head, int x, int y, int z);
-void print_list(cell ** order, int SIZE_CUBE);
+void print_list(cell ** order, int SIZE_CUBE, char * buffer);
 void insert_first_batch(cell * cur_table, cell* cur_table_low, cell* cur_table_high, int buffer[], int count, int SIZE_MAIN_TABLE, int SIZE_SIDE_TABLE, int lowB, int highB);
 void print_table(cell * table, int SIZE_TABLE);
 void serialize(cell * table, int SIZE_TABLE, int dest[], int size);
