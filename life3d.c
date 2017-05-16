@@ -4,6 +4,7 @@
 #include <string.h>
 #include <mpi.h>
 #include "life3d.h"
+#define BUFFER_SIZE 500000
 
 int main(int argc, char *argv[]){
    
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]){
     */
     
    int boundaries[2*p];
+   int one_row = 0;
    
    memset(&boundaries, -1, 2*p*sizeof(int));
       
@@ -108,6 +110,28 @@ int main(int argc, char *argv[]){
        int partials[p];
        int j = 1;
        int k = 0;
+
+for (int i = 0; i < SIZE_CUBE; i++){
+            partial_sum += count[i];
+            
+            if (j == 2*p-1 || i == SIZE_CUBE-1){
+                boundaries[j] = SIZE_CUBE-1;
+                break;
+            }
+            
+            partial_total += count[i];
+            
+            if (partial_sum >= perc*cell_proc){
+                boundaries[j] = i;
+                boundaries[j+1] = i+1;
+                j += 2;
+                partials[k] = partial_sum;
+                k++;
+                partial_sum = 0;
+            } 
+       }
+
+       /*
        int i;
        for(i=0;i<SIZE_CUBE;i++){
 
@@ -135,7 +159,7 @@ int main(int argc, char *argv[]){
               partial_sum=count[i];
             } else partial_sum +=count[i];
        }
-       
+       */
        /* Check if boundaries have been computed correctly */
        
        for (int i = 0; i < 2*p; i++){
@@ -145,8 +169,7 @@ int main(int argc, char *argv[]){
                 exit(3);
             }
        }
-       
-       
+  
        partials[p-1] = totcells-partial_total;
        
        /*
@@ -177,7 +200,17 @@ int main(int argc, char *argv[]){
    MPI_Bcast(boundaries, 2*p, MPI_INT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&SIZE_CUBE, 1, MPI_INT, 0, MPI_COMM_WORLD);
    MPI_Bcast(&iter, 1, MPI_INT, 0, MPI_COMM_WORLD);
-   
+
+
+   /*Check if some processes only get one row */
+
+  for (int i = 0; i < 2*p; i = i+2){
+          if (boundaries[i] == boundaries[i+1]){
+            one_row = 1;
+            break;
+          }
+  }
+
    
    //These are the boundaries of the current process ---> USE THESE VARIABLES IN THE MAIN ALGORITHM WHEN NEEDED
    int bound_low = boundaries[2*id];
@@ -189,8 +222,8 @@ int main(int argc, char *argv[]){
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
-  int SIZE_MAIN_TABLE = 22721;  //The main table has more entries
-  int SIZE_SIDE_TABLE = 22721;   //The tables containing only ghost rows have less entries on average so the table can be smaller
+  int SIZE_MAIN_TABLE = 103001/p;  //The main table has more entries //27741
+  int SIZE_SIDE_TABLE = 103001/p;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
   memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
@@ -219,28 +252,51 @@ int main(int argc, char *argv[]){
 
   FILE *file = fopen (argv[1], "r");
   fgets(line, sizeof(line), file);
-  while (fgets(line, sizeof(line), file)) {
-                
-      points = strtok(line, " ");
-      x = atoi(points);
-      points = strtok (NULL, " ");
-      y= atoi(points);
-      points = strtok (NULL, " ");
-      z = atoi(points);
-                
-      if (x >= boundaries[2*id] && x <= boundaries[2*id+1]) {
-          insert(aux_main_table, x, y, z, SIZE_MAIN_TABLE);
-      }    
 
-      if (x == mod(boundaries[2*id]-1, SIZE_CUBE) || x == mod(boundaries[2*id]-2, SIZE_CUBE) || x == boundaries[2*id]) {
-          insert(low_main_table, x, y, z, SIZE_SIDE_TABLE);
-      } 
 
-      if (x==mod(boundaries[2*id+1]+1, SIZE_CUBE) || x==mod(boundaries[2*id+1]+2, SIZE_CUBE) || x == boundaries[2*id+1]){
-          insert(high_main_table, x, y, z, SIZE_SIDE_TABLE);
-      }
 
-  } 
+  if (one_row != 1){
+
+          while (fgets(line, sizeof(line), file)) {
+                        
+              points = strtok(line, " ");
+              x = atoi(points);
+              points = strtok (NULL, " ");
+              y= atoi(points);
+              points = strtok (NULL, " ");
+              z = atoi(points);
+                        
+              if (x >= boundaries[2*id] && x <= boundaries[2*id+1]) {
+                  insert(aux_main_table, x, y, z, SIZE_MAIN_TABLE);
+              }    
+
+              if (x == mod(boundaries[2*id]-1, SIZE_CUBE) || x == mod(boundaries[2*id]-2, SIZE_CUBE) || x == boundaries[2*id]) {
+                  insert(low_main_table, x, y, z, SIZE_SIDE_TABLE);
+              } 
+
+              if (x==mod(boundaries[2*id+1]+1, SIZE_CUBE) || x==mod(boundaries[2*id+1]+2, SIZE_CUBE) || x == boundaries[2*id+1]){
+                  insert(high_main_table, x, y, z, SIZE_SIDE_TABLE);
+              }
+
+          } 
+  } else {
+
+          while (fgets(line, sizeof(line), file)) {
+                        
+              points = strtok(line, " ");
+              x = atoi(points);
+              points = strtok (NULL, " ");
+              y= atoi(points);
+              points = strtok (NULL, " ");
+              z = atoi(points);
+                        
+              if ((x >= boundaries[2*id] && x <= boundaries[2*id+1]) || (x == mod(boundaries[2*id]-1, SIZE_CUBE)) || (x==mod(boundaries[2*id+1]+1, SIZE_CUBE))) {
+                  insert(aux_main_table, x, y, z, SIZE_MAIN_TABLE);
+              }    
+
+          }
+
+  }
        
   fclose (file); 
 
@@ -251,244 +307,406 @@ int main(int argc, char *argv[]){
   int proc_up = mod(id + 1, p);
   int proc_down = mod(id-1, p);
 
+  if (one_row != 1){
+                    for (i=0; i<iter; i++){
+                      aux=cur_main_table;
+                      cur_main_table = aux_main_table;
+                      aux_main_table=aux;
+                      
+                      free_list(aux_main_table, SIZE_MAIN_TABLE); 
+                    
+                      int temp;
+                      int num_up = 0;
+                      int num_down = 0;
 
-  for (i=0; i<iter; i++){
-   
+                      if (i % 2 == 0){
+
+                        for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+                          current = cur_main_table[temp];
+                          if(current.key!=-1){
+                            neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
+                            if (neighbours>=2 && neighbours<=4){
+
+                              insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                            }
+
+                            while (current.next != NULL) {
+                              current=*current.next;
+                              neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
+                              if (neighbours>=2 && neighbours<=4){
+
+                                insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                              }
+                            } 
+                          }
+                        }
+
+
+                          free_list(high_next_table, SIZE_SIDE_TABLE);
+                          free_list(low_next_table, SIZE_SIDE_TABLE);
+
+
+                        for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
+                          current = high_main_table[temp];
+                          if(current.key!=-1){
+                            neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_high);
+
+                            if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_high+1, SIZE_CUBE)){
+
+                              insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+                            }
+
+                            while (current.next != NULL) {
+                              current=*current.next;
+                              neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_high);  
+                        
+                              if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_high+1, SIZE_CUBE)){
+
+                                insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+                              }
+                            } 
+                          }
+                        }
+
+                          for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
+                          current = low_main_table[temp];
+                          if(current.key!=-1){
+                            neighbours= num_alive_neighbours_al(low_main_table, low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_low);
+                            if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_low-1, SIZE_CUBE)){
+
+                              insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+                            }
+
+                            while (current.next != NULL) {
+                              current=*current.next;
+                              neighbours= num_alive_neighbours_al(low_main_table, low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_low);            
+                              if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_low-1, SIZE_CUBE)){
+
+                                insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+
+                              }
+                            } 
+                          }
+                        } 
+
+
+                      } else {
+                                free_list(high_main_table, SIZE_SIDE_TABLE);
+                                free_list(low_main_table, SIZE_SIDE_TABLE);
+
+                                for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+                                current = cur_main_table[temp];
+                                if(current.key!=-1){
+                                  neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, low_main_table, high_main_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+                                  if (neighbours>=2 && neighbours<=4){
+
+                                    insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                                    if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
+                                      insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                      num_down = num_down + 1;
+                                    }
+
+                                    if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
+                                      insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                      num_up = num_up + 1;
+                                    }
+
+                                    if (current.x == bound_low){
+                                      insert(low_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                    }
+
+                                    if (current.x == bound_high){
+                                      insert(high_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                    }
+                                  }
+
+                                  while (current.next != NULL) {
+                                    current=*current.next;
+                                    neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, low_main_table, high_main_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+                                    if (neighbours>=2 && neighbours<=4){
+
+
+                                      insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
+
+                                      if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
+                                        insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                        num_down = num_down + 1;
+                                      }
+
+                                      if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
+                                        insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                        num_up = num_up + 1;
+                                      }
+
+                                      if (current.x == bound_low){
+                                        insert(low_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                      }
+
+                                      if (current.x == bound_high){
+                                        insert(high_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+                                      }
+                                    }
+                                  } 
+                                }
+                              }
+                    
+
+                                free_list(high_next_table, SIZE_SIDE_TABLE);
+                                free_list(low_next_table, SIZE_SIDE_TABLE);
+
+                                MPI_Request request_up;
+                                int buffer_recv_up[BUFFER_MAX];
+                                int TAG_SDOWN_RUP = 0;
+
+                                MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
+
+                                MPI_Request request_down;
+                                int buffer_recv_down[BUFFER_MAX];
+                                int TAG_SUP_RDOWN = 1;
+
+                                MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
+
+                                int send_up[num_up*3];
+                                serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
+
+                                MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
+
+                                int send_down[num_down*3]; 
+                                serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
+
+                                MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
+
+
+                                MPI_Status status_up;
+                                MPI_Status status_down;
+
+                                MPI_Wait(&request_up, &status_up);
+                                MPI_Wait(&request_down, &status_down);
+
+
+
+                                int num_recv_up;
+                                int num_recv_down;
+
+                                MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
+                                MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
+
+                                insert_table(high_main_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up);
+                                insert_table(low_main_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down);
+                                
+                                free_list(aux_high_table, SIZE_SIDE_TABLE);
+                                free_list(aux_low_table, SIZE_SIDE_TABLE);
+
+                      }
+
+                            if (i == iter-1){
+                     
+                            cell * order[SIZE_CUBE];
+                            for (int l = 0; l<SIZE_CUBE; l++)
+                                order[l] = NULL;
+                     
+                            ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
+
+                            elapsed_time += MPI_Wtime();
+
+                            
+                            char buffer[BUFFER_SIZE];
+                            print_list(order, SIZE_CUBE,buffer);
+                            
+                            if (id == 0){
+                              printf("%s", buffer);
+                              fflush(stdout);
+                              char buffer_ord[BUFFER_SIZE];
+
+                              for (int q = 1; q < p; q++){
+                                MPI_Status stat;
+                                MPI_Recv(buffer_ord, BUFFER_SIZE, MPI_CHAR, q, 9, MPI_COMM_WORLD, &stat);
+                                printf("%s", buffer_ord);
+                                fflush(stdout);
+                              }
+
+                            } else {
+
+                              MPI_Send(buffer, strlen(buffer)+1, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
+                            }
+                            
+                            
+
+                        }
+
+
+
+
+                  }
+    } else {
+      for (i=0; i<iter; i++){
     aux=cur_main_table;
     cur_main_table = aux_main_table;
     aux_main_table=aux;
-    
+  
     free_list(aux_main_table, SIZE_MAIN_TABLE); 
   
     int temp;
     int num_up = 0;
     int num_down = 0;
+            for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
+      current = cur_main_table[temp];
+      if(current.key!=-1){
+        neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+        if (neighbours>=2 && neighbours<=4 && current.x >= bound_low && current.x <= bound_high){
+          //printf("Insertion point 1: (%d, %d)\n", bound_low, bound_high);
+          insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
 
-    if (i % 2 == 0){
+          if (current.x == bound_low){
+            insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            num_down = num_down + 1;
+          }
 
-      for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
-        current = cur_main_table[temp];
-        if(current.key!=-1){
-          neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
-          if (neighbours>=2 && neighbours<=4){
+          if (current.x == bound_high){
+            insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+            num_up = num_up + 1;
+          }
+        }
 
+        while (current.next != NULL) {
+          current=*current.next;
+          neighbours= num_alive_neighbours_a(cur_main_table, aux_main_table, aux_low_table, aux_high_table, current.x, current.y, current.z, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
+          if (neighbours>=2 && neighbours<=4 && current.x >= bound_low && current.x <= bound_high){
+            //if (id == 2) printf("Insertion point 2: (%d, %d, %d)\n", current.x, current.y, current.z);
             insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
 
-          }
-
-          while (current.next != NULL) {
-            current=*current.next;
-            neighbours= num_alive_neighbours_af(cur_main_table, aux_main_table, current.x, current.y, current.z, low_main_table, high_main_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_SIDE_TABLE, SIZE_CUBE);
-            if (neighbours>=2 && neighbours<=4){
-
-              insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
-
+            if (current.x == bound_low){
+              insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+              num_down = num_down+1;
             }
-          } 
-        }
+
+            if (current.x == bound_high){
+              insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
+              num_up = num_up+1;
+            }
+          }
+        } 
       }
-
-
-        free_list(high_next_table, SIZE_SIDE_TABLE);
-        free_list(low_next_table, SIZE_SIDE_TABLE);
-
-
-      for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
-        current = high_main_table[temp];
-        if(current.key!=-1){
-          neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_high);
-
-          if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_high+1, SIZE_CUBE)){
-
-            insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-
-          }
-
-          while (current.next != NULL) {
-            current=*current.next;
-            neighbours= num_alive_neighbours_ah(high_main_table, high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_high);  
-      
-            if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_high+1, SIZE_CUBE)){
-
-              insert(high_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-
-            }
-          } 
-        }
-      }
-
-        for(temp=0; temp < SIZE_SIDE_TABLE; temp++){
-        current = low_main_table[temp];
-        if(current.key!=-1){
-          neighbours= num_alive_neighbours_al(low_main_table, low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_low);
-          if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_low-1, SIZE_CUBE)){
-
-            insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-
-          }
-
-          while (current.next != NULL) {
-            current=*current.next;
-            neighbours= num_alive_neighbours_al(low_main_table, low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE, SIZE_CUBE, bound_low);            
-            if (neighbours>=2 && neighbours<=4 && current.x == mod(bound_low-1, SIZE_CUBE)){
-
-              insert(low_next_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-
-            }
-          } 
-        }
-      } 
-
-
-    } else {
-              free_list(high_main_table, SIZE_SIDE_TABLE);
-              free_list(low_main_table, SIZE_SIDE_TABLE);
-
-              for(temp=0; temp < SIZE_MAIN_TABLE; temp++){
-              current = cur_main_table[temp];
-              if(current.key!=-1){
-                neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, low_main_table, high_main_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
-                if (neighbours>=2 && neighbours<=4){
-
-                  insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
-
-                  if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
-                    insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                    num_down = num_down + 1;
-                  }
-
-                  if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
-                    insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                    num_up = num_up + 1;
-                  }
-
-                  if (current.x == bound_low){
-                    insert(low_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                  }
-
-                  if (current.x == bound_high){
-                    insert(high_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                  }
-                }
-
-                while (current.next != NULL) {
-                  current=*current.next;
-                  neighbours= num_alive_neighbours_a2(cur_main_table, aux_main_table, aux_low_table, aux_high_table, low_main_table, high_main_table, current.x, current.y, current.z, low_next_table, high_next_table, ghost_down, ghost_up, SIZE_MAIN_TABLE, SIZE_CUBE, SIZE_SIDE_TABLE, &num_down, &num_up);
-                  if (neighbours>=2 && neighbours<=4){
-
-
-                    insert(aux_main_table, current.x, current.y, current.z, SIZE_MAIN_TABLE);
-
-                    if (current.x == bound_low || current.x == mod(bound_low+1, SIZE_CUBE)){
-                      insert(aux_low_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                      num_down = num_down + 1;
-                    }
-
-                    if (current.x == bound_high || current.x == mod(bound_high-1, SIZE_CUBE)){
-                      insert(aux_high_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                      num_up = num_up + 1;
-                    }
-
-                    if (current.x == bound_low){
-                      insert(low_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                    }
-
-                    if (current.x == bound_high){
-                      insert(high_main_table, current.x, current.y, current.z, SIZE_SIDE_TABLE);
-                    }
-                  }
-                } 
-              }
-            }
-  
-
-              free_list(high_next_table, SIZE_SIDE_TABLE);
-              free_list(low_next_table, SIZE_SIDE_TABLE);
-
-              MPI_Request request_up;
-              int buffer_recv_up[BUFFER_MAX];
-              int TAG_SDOWN_RUP = 0;
-
-              MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
-
-              MPI_Request request_down;
-              int buffer_recv_down[BUFFER_MAX];
-              int TAG_SUP_RDOWN = 1;
-
-              MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
-
-              int send_up[num_up*3];
-              serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
-
-              MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
-
-              int send_down[num_down*3]; 
-              serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
-
-              MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
-
-
-              MPI_Status status_up;
-              MPI_Status status_down;
-
-              MPI_Wait(&request_up, &status_up);
-              MPI_Wait(&request_down, &status_down);
-
-
-
-              int num_recv_up;
-              int num_recv_down;
-
-              MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
-              MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
-
-              insert_table(high_main_table, SIZE_SIDE_TABLE, buffer_recv_up, num_recv_up);
-              insert_table(low_main_table, SIZE_SIDE_TABLE, buffer_recv_down, num_recv_down);
+    }
+              /*
+                if (id == 0){
+              char buffer22[5000];
+              printf("-------------CUR MAIN TABLE ------------\n");
+              print_table(cur_main_table, SIZE_MAIN_TABLE, buffer22);
+              printf("%s\n", buffer22);
+              memset(buffer22, '\0', 5000);
+              printf("%s\n", buffer22);              
+              printf("-------------AUX MAIN TABLE ------------\n");
+              print_table(aux_main_table, SIZE_MAIN_TABLE, buffer22);
+              printf("%s\n", buffer22);
+              memset(buffer22, '\0', 5000);
+              printf("-------------AUX LOW TABLE-------------\n");
+              print_table(aux_low_table, SIZE_SIDE_TABLE, buffer22);
+              printf("%s\n", buffer22 );
+              memset(buffer22, '\0', 5000);
+              printf("-------------AUX HIGH TABLE-------------\n");
+              print_table(aux_high_table, SIZE_SIDE_TABLE, buffer22);
+              printf("%s\n", buffer22 );
+              memset(buffer22, '\0', 5000);
               
-              free_list(aux_high_table, SIZE_SIDE_TABLE);
-              free_list(aux_low_table, SIZE_SIDE_TABLE);
+
+          }*/
+          
+
+                if (i == iter-1){
+                     elapsed_time += MPI_Wtime();
+          cell * order[SIZE_CUBE];
+          for (int l = 0; l<SIZE_CUBE; l++)
+          order[l] = NULL;
+                     
+          ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
+
+                            
+          char buffer[BUFFER_SIZE];
+          print_list(order, SIZE_CUBE,buffer);
+                            
+          if (id == 0){
+              printf("%s", buffer);
+              fflush(stdout);
+              char buffer_ord[BUFFER_SIZE];
+
+              for (int q = 1; q < p; q++){
+                    MPI_Status stat;
+                    MPI_Recv(buffer_ord, BUFFER_SIZE, MPI_CHAR, q, 9, MPI_COMM_WORLD, &stat);
+                    printf("%s", buffer_ord);
+                    fflush(stdout);
+              }
+
+              } else {
+
+                    MPI_Send(buffer, strlen(buffer)+1, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
+              }
+                            
+              break;              
+
+      }
+
+      MPI_Request request_up;
+      int buffer_recv_up[BUFFER_MAX];
+      int TAG_SDOWN_RUP = 0;
+
+      MPI_Irecv(buffer_recv_up, BUFFER_MAX, MPI_INT, proc_up, TAG_SDOWN_RUP, MPI_COMM_WORLD, &request_up);
+
+      MPI_Request request_down;
+      int buffer_recv_down[BUFFER_MAX];
+      int TAG_SUP_RDOWN = 1;
+
+      MPI_Irecv(buffer_recv_down, BUFFER_MAX, MPI_INT, proc_down, TAG_SUP_RDOWN, MPI_COMM_WORLD, &request_down);
+
+      int send_up[num_up*3];
+      serialize(aux_high_table, SIZE_SIDE_TABLE, send_up, num_up*3);
+
+      MPI_Send(send_up, num_up*3, MPI_INT, proc_up, TAG_SUP_RDOWN, MPI_COMM_WORLD);
+
+      int send_down[num_down*3]; 
+      serialize(aux_low_table, SIZE_SIDE_TABLE,send_down , num_down*3);
+
+
+      MPI_Send(send_down, num_down*3, MPI_INT, proc_down, TAG_SDOWN_RUP, MPI_COMM_WORLD);
+
+
+      MPI_Status status_up;
+      MPI_Status status_down;
+
+      MPI_Wait(&request_up, &status_up);
+      MPI_Wait(&request_down, &status_down);
+
+      int num_recv_up;
+      int num_recv_down;
+
+      MPI_Get_count(&status_up, MPI_INT, &num_recv_up);
+      MPI_Get_count(&status_down, MPI_INT, &num_recv_down);
+
+      insert_table(aux_main_table, SIZE_MAIN_TABLE, buffer_recv_up, num_recv_up);
+      insert_table(aux_main_table, SIZE_MAIN_TABLE, buffer_recv_down, num_recv_down);
+      free_list(aux_high_table, SIZE_SIDE_TABLE);
+      free_list(aux_low_table, SIZE_SIDE_TABLE);
+    
+      
+      
+   } 
+
+
+
 
     }
 
-          if (i == iter-1){
+
+
+
+
    
-          cell * order[SIZE_CUBE];
-          for (int l = 0; l<SIZE_CUBE; l++)
-              order[l] = NULL;
-   
-          ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
-
-          elapsed_time += MPI_Wtime();
-
-          
-          char buffer[500000];
-          print_list(order, SIZE_CUBE,buffer);
-          
-          if (id == 0){
-            printf("%s", buffer);
-            fflush(stdout);
-            char buffer_ord[500000];
-
-            for (int q = 1; q < p; q++){
-              MPI_Status stat;
-              MPI_Recv(buffer_ord, 500000, MPI_CHAR, q, 9, MPI_COMM_WORLD, &stat);
-              printf("%s", buffer_ord);
-              fflush(stdout);
-            }
-
-          } else {
-
-            MPI_Send(buffer, 500000, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
-          }
-          
-          
-
-      }
-
-
-
-
-}
 
    if (id == 0){
       printf("%f\n", elapsed_time);
