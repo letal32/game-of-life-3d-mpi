@@ -4,7 +4,7 @@
 #include <string.h>
 #include <mpi.h>
 #include "life3d.h"
-#define BUFFER_SIZE 500000
+#define BUFFER_SIZE 50000000
 
 int main(int argc, char *argv[]){
    
@@ -19,7 +19,7 @@ int main(int argc, char *argv[]){
    
    char line[100];
    char * points;
-   
+
    /* Initialize MPI  */
    
    MPI_Init(&argc, &argv);
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]){
    
    MPI_Comm_rank (MPI_COMM_WORLD, &id);
    MPI_Comm_size (MPI_COMM_WORLD, &p);
-   
+
    
    /* Read the file (only process 0) with the initial cells distribution and try
     * to compute boundaries in order to guarantee a fair distribution of alive cells among processes 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     
    int boundaries[2*p];
    int one_row = 0;
-   
+
    memset(&boundaries, -1, 2*p*sizeof(int));
       
    if (id == 0){
@@ -222,8 +222,8 @@ for (int i = 0; i < SIZE_CUBE; i++){
    
    /* Insert the cells in first_batch inside the right tables and compute the first generation */
    
-  int SIZE_MAIN_TABLE = 103001/p;  //The main table has more entries //27741
-  int SIZE_SIDE_TABLE = 103001/p;   //The tables containing only ghost rows have less entries on average so the table can be smaller
+  int SIZE_MAIN_TABLE = 1030010/p;  //The main table has more entries //27741
+  int SIZE_SIDE_TABLE = 1030010/p;   //The tables containing only ghost rows have less entries on average so the table can be smaller
 
   cell * cur_main_table = malloc(SIZE_MAIN_TABLE*sizeof(cell));
   memset(cur_main_table, -1, SIZE_MAIN_TABLE*sizeof(cell));
@@ -512,17 +512,15 @@ for (int i = 0; i < SIZE_CUBE; i++){
                                 order[l] = NULL;
                      
                             ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
-
-                            elapsed_time += MPI_Wtime();
-
                             
-                            char buffer[BUFFER_SIZE];
+                            char *buffer = malloc(BUFFER_SIZE);
                             print_list(order, SIZE_CUBE,buffer);
                             
                             if (id == 0){
                               printf("%s", buffer);
                               fflush(stdout);
-                              char buffer_ord[BUFFER_SIZE];
+                              free(buffer);
+                              char *buffer_ord = malloc(BUFFER_SIZE);
 
                               for (int q = 1; q < p; q++){
                                 MPI_Status stat;
@@ -530,17 +528,19 @@ for (int i = 0; i < SIZE_CUBE; i++){
                                 printf("%s", buffer_ord);
                                 fflush(stdout);
                               }
+                              free(buffer_ord);
 
                             } else {
 
                               MPI_Send(buffer, strlen(buffer)+1, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
+                              free(buffer);
                             }
                             
                             
 
                         }
 
-
+                        
 
 
                   }
@@ -628,13 +628,13 @@ for (int i = 0; i < SIZE_CUBE; i++){
           ordered_list(aux_main_table, order, SIZE_MAIN_TABLE, SIZE_CUBE);
 
                             
-          char buffer[BUFFER_SIZE];
+          char *buffer = malloc(BUFFER_SIZE);
           print_list(order, SIZE_CUBE,buffer);
                             
           if (id == 0){
               printf("%s", buffer);
               fflush(stdout);
-              char buffer_ord[BUFFER_SIZE];
+              char *buffer_ord = malloc(BUFFER_SIZE);
 
               for (int q = 1; q < p; q++){
                     MPI_Status stat;
@@ -642,10 +642,12 @@ for (int i = 0; i < SIZE_CUBE; i++){
                     printf("%s", buffer_ord);
                     fflush(stdout);
               }
+              free(buffer_ord);
 
               } else {
 
                     MPI_Send(buffer, strlen(buffer)+1, MPI_CHAR, 0, 9, MPI_COMM_WORLD);
+                    free(buffer);
               }
                             
               break;              
@@ -705,7 +707,7 @@ for (int i = 0; i < SIZE_CUBE; i++){
 
 
 
-
+    elapsed_time += MPI_Wtime();
    
 
    if (id == 0){
